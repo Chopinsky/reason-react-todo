@@ -5,6 +5,6 @@ let make = (children) => {
   render: (self) =>
     <div className="app">
       <div className="title"> (ReasonReact.stringToElement("What to do")) </div>
-      <div className="items"> (ReasonReact.stringToElement("Nothing")) </div>
+      <div className="items"> (ReasonReact.stringToElement("Nothing yet...")) </div>
     </div>
 };
