@@ -2,4 +2,4 @@
 *.bsb.lock
 lib
 node_modules
-public/bundle.js
+client/public/bundle.js
