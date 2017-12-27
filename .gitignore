@@ -5,3 +5,4 @@ node_modules
 client/public/bundle.js
 server/target
 server/**/*.rs.bk
+.idea
