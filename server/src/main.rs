@@ -20,37 +20,31 @@ fn handle_connection(mut stream: TcpStream) {
     println!("Request: {}", String::from_utf8_lossy(&buffer[..]));
     println!("====================");
 
-    let root = b"GET / HTTP/1.1\r\n";
-    let style = b"GET /styles.css HTTP/1.1\r\n";
-    let script = b"GET /bundle.js HTTP/1.1\r\n";
-    let favicon = b"GET /favicon.ico HTTP/1.1\r\n";
-
-    let response =
-        if buffer.starts_with(root) {
-            generate_response("index.html")
-        } else if buffer.starts_with(style) {
-            generate_response("styles.css")
-        } else if buffer.starts_with(script) {
-            generate_response("bundle.js")
-        } else if buffer.starts_with(favicon) {
-            generate_response("")
-        } else {
-            generate_404_response()
-        };
+    let response = get_response(&buffer);
 
     stream.write(response.as_bytes()).unwrap();
     stream.flush().unwrap();
 }
 
-fn generate_response(request_source: &str) -> String {
-    let mut response = String::new();
+fn get_response(request: &[u8]) -> String {
 
-    response.push_str("HTTP/1.1");
-    response.push_str(" 200");
-    response.push_str(" OK\r\n\r\n");
-    
-    if !request_source.is_empty() {
-        let path = format!("../client/public/{}", request_source);
+    let (status_line, path) =
+        if request.starts_with(b"GET / HTTP/1.1\r\n") {
+            (get_status(200), get_source_path("index.html"))
+        } else if request.starts_with(b"GET /styles.css HTTP/1.1\r\n") {
+            (get_status(200), get_source_path("styles.css"))
+        } else if request.starts_with(b"GET /bundle.js HTTP/1.1\r\n") {
+            (get_status(200), get_source_path("bundle.js"))
+        } else if request.starts_with(b"GET /favicon.ico HTTP/1.1\r\n") {
+            (get_status(200), get_source_path(""))
+        } else {
+            (get_status(404), get_source_path("404.html"))
+        };
+
+    let mut response = String::new();
+    response.push_str(&status_line);
+
+    if !path.is_empty() {
         let mut file = File::open(&path).unwrap();
         let mut contents = String::new();
 
@@ -61,15 +55,25 @@ fn generate_response(request_source: &str) -> String {
     return response;
 }
 
-fn generate_404_response() -> String {
-    let status_line = "HTTP/1.1 404 NOT FOUND\r\n\r\n";
-    let path = format!("../client/public/404.html");
+fn get_source_path(source: &str) -> String {
 
-    let mut file = File::open(path).unwrap();
-    let mut contents = String::new();
-    file.read_to_string(&mut contents).unwrap();
+    let mut path = String::new();
 
-    let response = format!("{}{}", status_line, contents);
+    if !source.is_empty() {
+        path = format!("../client/public/{}", &source);
+    }
 
-    return response;
+    return path;
+}
+
+fn get_status(status: u16) -> String {
+
+    let status_line: String;
+    if status == 200 {
+        status_line = String::from("HTTP/1.1 200 OK\r\n\r\n");
+    } else {
+        status_line = String::from("HTTP/1.1 404 NOT FOUND\r\n\r\n");
+    }
+
+    return status_line;
 }
