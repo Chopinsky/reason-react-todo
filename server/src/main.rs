@@ -17,25 +17,35 @@ fn handle_connection(mut stream: TcpStream) {
 
     stream.read(&mut buffer).unwrap();
 
-    println!("Request: {}", String::from_utf8_lossy(&buffer[..]));
-    println!("====================");
+    let request = String::from_utf8_lossy(&buffer[..]);
+    let mut response = String::new();
 
-    let response = get_response(&buffer);
+    if !request.is_empty() {
+        let v: Vec<&str> = request.trim().split(' ').collect();
+        if v.len() > 2 {
+            println!("Request method: {}; path: {}", v[0], v[1]);
+            println!("====================");
+
+            if !v[0].is_empty() && v[0].len() == 3 && v[0].starts_with("GET") {
+                response = get_response(&v[1]);
+            }
+        }
+    }
 
     stream.write(response.as_bytes()).unwrap();
     stream.flush().unwrap();
 }
 
-fn get_response(request: &[u8]) -> String {
+fn get_response(request: &str) -> String {
 
     let (status_line, path) =
-        if request.starts_with(b"GET / HTTP/1.1\r\n") {
+        if request.len() == 1 && request.starts_with("/") {
             (get_status(200), get_source_path("index.html"))
-        } else if request.starts_with(b"GET /styles.css HTTP/1.1\r\n") {
+        } else if request.starts_with("/styles.css") {
             (get_status(200), get_source_path("styles.css"))
-        } else if request.starts_with(b"GET /bundle.js HTTP/1.1\r\n") {
+        } else if request.starts_with("/bundle.js") {
             (get_status(200), get_source_path("bundle.js"))
-        } else if request.starts_with(b"GET /favicon.ico HTTP/1.1\r\n") {
+        } else if request.starts_with("/favicon.ico") {
             (get_status(200), get_source_path(""))
         } else {
             (get_status(404), get_source_path("404.html"))
