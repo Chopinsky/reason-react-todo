@@ -20,11 +20,17 @@ let make = (children) => {
   reducer: ((), _) => ReasonReact.NoUpdate,
   render: ({state: {items}}) => {
     let itemCount = List.length(items);
+    let itemCountDisplay =
+      switch (itemCount) {
+      | 1 => "1 item"
+      | _ => string_of_int(itemCount) ++ " items"
+      };
+
     <div className="app">
       <div className="title"> (stringify("What to do")) </div>
       <div className="items"> (stringify("Nothing yet...")) </div>
       <div className="footer">
-        (stringify(string_of_int(itemCount) ++ " items"))
+        (stringify(itemCountDisplay))
       </div>
     </div>
   }

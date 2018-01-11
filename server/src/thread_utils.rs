@@ -3,6 +3,16 @@ use std::sync::mpsc;
 use std::sync::Arc;
 use std::sync::Mutex;
 
+enum Message {
+    NewJob(Job),
+    Terminate,
+}
+
+pub struct ThreadPool {
+    workers: Vec<Worker>,
+    sender: mpsc::Sender<Message>,
+}
+
 trait FnBox {
     fn call_box(self: Box<Self>);
 }
@@ -14,16 +24,6 @@ impl<F: FnOnce()> FnBox for F {
 }
 
 type Job = Box<FnBox + Send + 'static>;
-
-enum Message {
-    NewJob(Job),
-    Terminate,
-}
-
-pub struct ThreadPool {
-    workers: Vec<Worker>,
-    sender: mpsc::Sender<Message>,
-}
 
 impl ThreadPool {
     pub fn new(mut size: usize) -> ThreadPool {
@@ -59,7 +59,8 @@ struct Worker {
 }
 
 impl Worker {
-    fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<Job>>>) -> Worker {
+    fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<Message>>>) -> Worker {
+
         let thread = thread::spawn(move || {
             loop {
                 let message = receiver.lock().unwrap().recv().unwrap();
@@ -77,7 +78,7 @@ impl Worker {
             }
         });
 
-        Worker{
+        Worker {
             id,
             thread: Some(thread),
         }

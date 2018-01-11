@@ -4,6 +4,7 @@
     "start": "bsb -make-world -w",
     "js": "bsb -make-world",
     "build": "webpack -w",
+    "buildOnly": "bsb -make-world && webpack",
     "clean": "bsb -clean-world",
     "server": ".\\server\\target\\debug\rust-server.exe"
   },
