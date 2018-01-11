@@ -9,15 +9,19 @@ type state = {
 
 let component = ReasonReact.reducerComponent("TodoApp");
 let stringify = ReasonReact.stringToElement;
+let newItem = () => {title: "Click a button", completed: true};
 
 let make = (children) => {
   ...component,
+
   initialState: () => {
     items: [
       {title: "Write something to do", completed: false}
     ]
   },
+
   reducer: ((), _) => ReasonReact.NoUpdate,
+
   render: ({state: {items}}) => {
     let itemCount = List.length(items);
     let itemCountDisplay =
@@ -27,7 +31,12 @@ let make = (children) => {
       };
 
     <div className="app">
-      <div className="title"> (stringify("What to do")) </div>
+      <div className="title">
+        (stringify("What to do"))
+        <button onClick=((event) => Js.log("didn't add something, yet..."))>
+          (stringify("Add something"))
+        </button>
+      </div>
       <div className="items"> (stringify("Nothing yet...")) </div>
       <div className="footer">
         (stringify(itemCountDisplay))
