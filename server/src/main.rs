@@ -16,7 +16,8 @@ fn main() {
             2 => {
                 let version = &args[1];
                 match &version[..] {
-                    "single" => true,
+                    "--single-thread" => true,
+                    "-S" => true,
                     _ => false,
                 }
             },
@@ -105,7 +106,12 @@ fn get_response(request: &str) -> String {
         let mut contents = String::new();
 
         file.read_to_string(&mut contents).unwrap();
-        response.push_str(&contents);
+
+        if contents.len() > 0 {
+            response.push_str(&contents);
+        } else {
+            println!("Can't load contents!");
+        }
     }
 
     return response;

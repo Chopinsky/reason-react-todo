@@ -7,6 +7,9 @@ type state = {
   items: list(item)
 };
 
+type action =
+  | AddItem;
+
 let component = ReasonReact.reducerComponent("TodoApp");
 let stringify = ReasonReact.stringToElement;
 let newItem = () => {title: "Click a button", completed: true};
@@ -20,26 +23,38 @@ let make = (children) => {
     ]
   },
 
-  reducer: ((), _) => ReasonReact.NoUpdate,
+  reducer: (action, {items}) => {
+    switch action {
+      | AddItem => ReasonReact.Update({ items: [newItem(), ...items] })
+    }
+  },
 
-  render: ({state: {items}}) => {
+  render: ({state: {items}, reduce}) => {
     let itemCount = List.length(items);
     let itemCountDisplay =
       switch (itemCount) {
-      | 1 => "1 item"
-      | _ => string_of_int(itemCount) ++ " items"
+      | 1 => stringify("1 item")
+      | _ => stringify(string_of_int(itemCount) ++ " items")
+      };
+
+    let itemsDisplay =
+      switch (itemCount) {
+      | 0 => stringify("Nothing yet...")
+      | _ => <TodoItem item=({title: "test title", completed: false}) />
       };
 
     <div className="app">
       <div className="title">
         (stringify("What to do"))
-        <button onClick=((event) => Js.log("didn't add something, yet..."))>
+        <button onClick=(reduce((event) => AddItem))>
           (stringify("Add something"))
         </button>
       </div>
-      <div className="items"> (stringify("Nothing yet...")) </div>
+      <div className="items">
+        (itemsDisplay)
+      </div>
       <div className="footer">
-        (stringify(itemCountDisplay))
+        (itemCountDisplay)
       </div>
     </div>
   }
