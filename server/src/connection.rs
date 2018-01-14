@@ -15,6 +15,12 @@ enum REST {
     DELETE,
 }
 
+struct Request {
+    rest_method: REST,
+    request_path: String,
+    header_info: HashMap<String, String>,
+}
+
 pub fn start_multi_thread_server() {
     let listener = TcpListener::bind("127.0.0.1:8080").unwrap();
     let pool = ThreadPool::new(4);
@@ -50,31 +56,36 @@ fn handle_connection(mut stream: TcpStream) {
     let mut response = String::new();
 
     if !request.is_empty() {
-        parse_request(&request);
-
-        let v: Vec<&str> = request.trim().split(' ').collect();
-        if v.len() > 2 {
-            if !v[0].is_empty() && v[0].len() == 3 && v[0].starts_with("GET") {
-                response = get_response(&v[1]);
-                //response = get_simple_response(&v[1]);
-            }
-        }
+        let request_info = parse_request(&request);
+        response = match request_info.rest_method {
+            REST::GET => {
+                get_response_content(&request_info.request_path[..])
+                //response = get_simple_response(&v[1])
+            },
+            REST::NONE | _ => {
+                /* Don't do anything special here */
+                get_response_content("")
+            },
+        };
     }
 
     stream.write(response.as_bytes()).unwrap();
     stream.flush().unwrap();
 }
 
-fn parse_request(request: &str) -> (REST, &str, HashMap<&str, &str>) {
+fn parse_request(request: &str) -> Request {
     let mut rest = REST::NONE;
-    let mut path = "";
+    let mut path = String::new();
     let mut header = HashMap::new();
 
     if request.is_empty() {
-        return (rest, path, header);
+        return Request {
+            rest_method: rest,
+            request_path: path,
+            header_info: header,
+        };
     }
 
-    //TODO: parse the request header
     let lines = request.trim().lines();
 
     for (num, line) in lines.enumerate() {
@@ -92,19 +103,23 @@ fn parse_request(request: &str) -> (REST, &str, HashMap<&str, &str>) {
                         };
 
                     },
-                    1 => { path = &info[..]; },
-                    _ => { /* Do nothing now */ },
+                    1 => { path.push_str(info); },
+                    _ => { /* Do nothing for now */ },
                 };
             }
         } else {
             let header_info: Vec<&str> = line.splitn(2, ':').collect();
             if header_info.len() == 2 {
-                header.insert(header_info[0], header_info[1]);
+                header.insert(String::from(header_info[0]), String::from(header_info[1]));
             }
         }
     }
 
-    return (rest, path, header);
+    return Request {
+        rest_method: rest,
+        request_path: path,
+        header_info: header,
+    };
 }
 
 fn get_simple_response(request: &str) -> String {
@@ -160,10 +175,10 @@ fn get_resp_info(status: u16) -> (String, Vec<String>) {
     (String::from(resp_status), source_paths)
 }
 
-fn get_response(request: &str) -> String {
+fn get_response_content(path: &str) -> String {
 
     let (status_line, path) =
-        match &request[..] {
+        match &path[..] {
             "/" => (get_status(200), get_source_path("index.html")),
             "/styles.css" => (get_status(200), get_source_path("styles.css")),
             "/bundle.js" => (get_status(200), get_source_path("bundle.js")),
@@ -195,20 +210,19 @@ fn get_source_path(source: &str) -> String {
     let mut path = String::new();
 
     if !source.is_empty() {
-        path = format!("../client/public/{}", &source);
+        path.push_str("../client/public/");
+        path.push_str(&source);
     }
 
     return path;
 }
 
 fn get_status(status: u16) -> String {
+    let status_base =
+        match status {
+            200 => "200 OK",
+            _ => "404 NOT FOUND"
+        };
 
-    let status_line: String;
-    if status == 200 {
-        status_line = String::from("HTTP/1.1 200 OK\r\n\r\n");
-    } else {
-        status_line = String::from("HTTP/1.1 404 NOT FOUND\r\n\r\n");
-    }
-
-    return status_line;
+    return format!("HTTP/1.1 {}\r\n\r\n", status_base);
 }
