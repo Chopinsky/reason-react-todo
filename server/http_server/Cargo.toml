@@ -1,0 +1,7 @@
+[package]
+name = "http_server"
+version = "0.1.1"
+authors = ["Jacob Zuo <chopinsky@live.com>"]
+
+[dependencies]
+regex = "0.2"

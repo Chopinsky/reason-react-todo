@@ -14,6 +14,7 @@ let make = (~item, children) => {
       <input
         _type="checkbox"
         checked=(Js.Boolean.to_js_boolean(item.completed))
+        /* TODO make interactive */
       />
       (str(item.title))
     </div>
