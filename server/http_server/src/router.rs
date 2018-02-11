@@ -5,69 +5,107 @@ use std::collections::HashMap;
 use regex::Regex;
 use http::*;
 
+#[derive(PartialEq, Eq, Hash, Clone)]
 pub enum REST {
     NONE,
     GET,
     POST,
     PUT,
     DELETE,
+    OPTIONS,
     OTHER(String),
-}
-
-impl Default for REST {
-    fn default() -> REST { REST::NONE }
 }
 
 #[derive(PartialEq, Eq, Hash, Clone, Copy)]
 pub enum RequestPath {
-    Exact(&'static str),
-    Partial(&'static str),
+    Explicit(&'static str),
     WildCard(&'static str),
 }
 
-/* Manual mayham...
+pub type Callback = fn(&Request, &mut Response);
 
-impl PartialEq for RequestPath {
-    fn eq(&self, other: &RequestPath) -> bool {
-        match self {
-            &RequestPath::Literal(lit_val) => {
-                match other {
-                    &RequestPath::Literal(other_val) => lit_val == other_val,
-                    _ => false,
-                }
+pub struct RouteMap {
+    explicit: HashMap<String, Callback>,
+    wildcard: HashMap<String, Callback>,
+}
+
+impl RouteMap {
+    pub fn new() -> Self {
+        RouteMap {
+            explicit: HashMap::new(),
+            wildcard: HashMap::new(),
+        }
+    }
+
+    pub fn insert(&mut self, uri: RequestPath, callback: Callback) {
+        match uri {
+            RequestPath::Explicit(req_uri) => {
+                self.explicit.entry(req_uri.to_owned()).or_insert(callback);
             },
-            &RequestPath::WildCard(wild_card_val) => {
-                match other {
-                    &RequestPath::WildCard(other_val) => wild_card_val == other_val,
-                    _ => false,
+            RequestPath::WildCard(req_uri) => {
+                self.wildcard.entry(req_uri.to_owned()).or_insert(callback);
+            },
+        }
+    }
+
+    fn seek_path(&self, uri: String) -> Option<&Callback> {
+        if let Some(callback) = self.explicit.get(&uri) {
+            return Some(callback);
+        }
+
+        for (req_path, callback) in self.wildcard.iter() {
+            if let Ok(re) = Regex::new(req_path) {
+                if re.is_match(&uri) {
+                    return Some(callback);
                 }
             }
         }
+
+        None
     }
 }
 
-impl Eq for RequestPath {}
-
-impl Hash for RequestPath {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        match self {
-            &RequestPath::Literal(lit_val) => lit_val.hash(state),
-            &RequestPath::WildCard(wild_card_val) => wild_card_val.hash(state)
+impl Clone for RouteMap {
+    fn clone(&self) -> Self {
+        RouteMap {
+            explicit: self.explicit.clone(),
+            wildcard: self.wildcard.clone(),
         }
     }
 }
 
- * End of manual mayham
- */
-
-pub type Callback = fn(Request, &mut Response);
-
 pub struct Route {
-    get: HashMap<RequestPath, Callback>,
-    post: HashMap<RequestPath, Callback>,
-    put: HashMap<RequestPath, Callback>,
-    delete: HashMap<RequestPath, Callback>,
-    others: HashMap<RequestPath, Callback>,
+    store: HashMap<REST, RouteMap>,
+}
+
+impl Route {
+    pub fn new() -> Self {
+        Route {
+            store: HashMap::new(),
+        }
+    }
+
+    pub fn from(source: &Route) -> Self {
+        Route {
+            store: source.store.clone(),
+        }
+    }
+
+    fn add_route(&mut self, method: REST, uri: RequestPath, callback: Callback) {
+        if method == REST::NONE { return; }
+
+        if let Some(route) = self.store.get_mut(&method) {
+            //find, insert, done.
+            route.insert(uri, callback);
+            return;
+        }
+
+        // the route for the given method has not yet initialized
+        let mut route = RouteMap::new();
+        route.insert(uri, callback);
+
+        self.store.insert(method, route);
+    }
 }
 
 pub trait Router {
@@ -75,116 +113,86 @@ pub trait Router {
     fn post(&mut self, uri: RequestPath, callback: Callback);
     fn put(&mut self, uri: RequestPath, callback: Callback);
     fn delete(&mut self, uri: RequestPath, callback: Callback);
-    fn other(&mut self, uri: RequestPath, callback: Callback);
-}
-
-pub trait RouteHandler {
-    fn handle_get(&self, req: Request, resp: &mut Response);
-    fn handle_put(&self, req: Request, resp: &mut Response);
-    fn handle_post(&self, req: Request, resp: &mut Response);
-    fn handle_delete(&self, req: Request, resp: &mut Response);
-    fn handle_other(&self, req: Request, resp: &mut Response);
-}
-
-impl Route {
-    pub fn new() -> Self {
-        Route {
-            get: HashMap::new(),
-            post: HashMap::new(),
-            put: HashMap::new(),
-            delete: HashMap::new(),
-            others: HashMap::new(),
-        }
-    }
-
-    pub fn from(source: &Route) -> Self {
-        Route {
-            get: source.get.clone(),
-            put: source.put.clone(),
-            post: source.post.clone(),
-            delete: source.delete.clone(),
-            others: source.others.clone(),
-        }
-    }
+    fn options(&mut self, uri: RequestPath, callback: Callback);
+    fn other(&mut self, method: &str, uri: RequestPath, callback: Callback);
 }
 
 impl Router for Route {
-    //TODO: add special handling for "*"
-
     fn get(&mut self, uri: RequestPath, callback: Callback) {
-        self.get.entry(uri).or_insert(callback);
-    }
-
-    fn put(&mut self, uri: RequestPath, callback: Callback) {
-        self.put.entry(uri).or_insert( callback);
+        self.add_route(REST::GET, uri, callback);
     }
 
     fn post(&mut self, uri: RequestPath, callback: Callback) {
-        self.post.entry(uri).or_insert(callback);
+        self.add_route(REST::POST, uri, callback);
+    }
+
+    fn put(&mut self, uri: RequestPath, callback: Callback) {
+        self.add_route(REST::PUT, uri, callback);
     }
 
     fn delete(&mut self, uri: RequestPath, callback: Callback) {
-        self.delete.entry(uri).or_insert( callback);
+        self.add_route(REST::DELETE, uri, callback);
     }
 
-    fn other(&mut self, uri: RequestPath, callback: Callback) {
-        self.others.entry(uri).or_insert( callback);
+    fn options(&mut self, uri: RequestPath, callback: Callback) {
+        self.add_route(REST::OPTIONS, uri, callback);
     }
+
+    fn other(&mut self, method: &str, uri: RequestPath, callback: Callback) {
+        if method.to_lowercase().eq(&"head"[..]) {
+            panic!("Can't...");
+        }
+
+        let request_method = REST::OTHER(method.to_lowercase().to_owned());
+        self.add_route(request_method, uri, callback);
+    }
+}
+
+pub trait RouteHandler {
+    fn handle_request_method(&self, req: &Request, resp: &mut Response);
 }
 
 impl RouteHandler for Route {
-    fn handle_get(&self, req: Request, resp: &mut Response) {
-        handle_request_worker(&self.get, req, resp)
-    }
+    fn handle_request_method(&self, req: &Request, resp: &mut Response) {
+        if req.method == REST::NONE {
+            resp.status(404);
+            return;
+        } else {
+            let uri = req.uri.clone();
+            let method =
+                if req.method.eq(&REST::OTHER(String::from("head"))) {
+                    REST::GET
+                } else {
+                    req.method.clone()
+                };
 
-    fn handle_put(&self, req: Request, resp: &mut Response) {
-        handle_request_worker(&self.put, req, resp)
-    }
-
-    fn handle_post(&self, req: Request, resp: &mut Response) {
-        handle_request_worker(&self.post, req, resp)
-    }
-
-    fn handle_delete(&self, req: Request, resp: &mut Response) {
-        handle_request_worker(&self.delete, req, resp)
-    }
-
-    fn handle_other(&self, req: Request, resp: &mut Response) {
-        handle_request_worker(&self.others, req, resp)
-    }
-}
-
-fn handle_request_worker(routes: &HashMap<RequestPath, Callback>, req: Request, resp: &mut Response) {
-    if let Some(callback) = seek_path(&routes, req.path.clone()) {
-        //Callback function will decide what to be written into the response
-        callback(req, resp);
-    } else {
-        resp.status(404);
-    }
-}
-
-fn seek_path(routes: &HashMap<RequestPath, Callback>, uri: String) -> Option<&Callback> {
-    for (req_path, callback) in routes.iter() {
-        match req_path.to_owned() {
-            RequestPath::Exact(val) => {
-                if uri.eq(&val) {
-                    return Some(callback);
-                }
-            },
-            RequestPath::Partial(val) => {
-                if uri.starts_with(&val) {
-                    return Some(callback);
-                }
-            },
-            RequestPath::WildCard(wild) => {
-                if let Ok(re) = Regex::new(wild) {
-                    if re.is_match(&uri) {
-                        return Some(callback);
-                    }
-                }
+            if let Some(routes) = self.store.get(&method) {
+                handle_request_worker(&routes, &req, resp, uri);
+            } else {
+                resp.status(404);
             }
         }
     }
+}
 
-    None
+fn handle_request_worker(routes: &RouteMap, req: &Request, resp: &mut Response, dest: String) {
+    if let Some(callback) = routes.seek_path(dest) {
+        //Callback function will decide what to be written into the response
+        callback(req, resp);
+
+        let mut redirect = resp.get_redirect_path();
+        if !redirect.is_empty() {
+            resp.redirect("");
+            if !redirect.starts_with("/") { redirect.insert(0, '/'); }
+
+            //println!("{}", redirect);
+
+            handle_request_worker(&routes, &req, resp, redirect.clone());
+
+            resp.header("Location", &redirect, true);
+            resp.status(301);
+        }
+    } else {
+        resp.status(404);
+    }
 }

@@ -4,4 +4,5 @@ version = "0.1.1"
 authors = ["Jacob Zuo <chopinsky@live.com>"]
 
 [dependencies]
-regex = "0.2"
+regex = "^0.2"
+chrono = "^0.4"

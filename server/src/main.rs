@@ -1,16 +1,10 @@
 extern crate rusty_express;
+use rusty_express::prelude::*;
+
 //extern crate http_server;
+//use http_server::prelude::*;
 
 use std::env;
-
-//use http_server::HttpServer;
-//use http_server::http::*;
-//use http_server::router::*;
-
-use rusty_express::HttpServer;
-use rusty_express::ServerDef;
-use rusty_express::http::*;
-use rusty_express::router::*;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -40,26 +34,26 @@ fn main() {
     let mut server = HttpServer::new();
     server.set_pool_size(pool_size);
 
-    server.get(RequestPath::Partial("/"), main_handler);
+    server.get(RequestPath::WildCard(r"^/\w*?"), main_handler);
 
     server.listen(8080);
 }
 
-fn main_handler(req: Request, resp: &mut Response) {
+fn main_handler(req: &Request, resp: &mut Response) {
 
 //    println!("Ready to server: {}", req.path);
 
-    match &req.path[..] {
+    match &req.uri[..] {
         "/" => {
-            resp.send_file(String::from("../client/public/index.html"));
+            resp.send_file("../client/public/index.html");
             resp.status(200);
         },
         "/bundle.js" => {
-            resp.send_file(String::from("../client/public/bundle.js"));
+            resp.send_file("../client/public/bundle.js");
             resp.status(200);
         },
         "/styles.css" => {
-            resp.send_file(String::from("../client/public/styles.css"));
+            resp.send_file("../client/public/styles.css");
             resp.status(200);
         },
         _ => {

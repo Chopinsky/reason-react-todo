@@ -1,21 +1,37 @@
+#[macro_use]
+extern crate lazy_static;
 extern crate regex;
+extern crate chrono;
 
 pub mod config;
 pub mod connection;
 pub mod http;
 pub mod router;
 pub mod server_states;
+pub mod session;
 pub mod thread_utils;
 
+pub mod prelude {
+    pub use {HttpServer, ServerDef};
+    pub use config::*;
+    pub use http::{Request, Response, ResponseWriter};
+    pub use router::{REST, Route, Router, RequestPath};
+}
+
+use std::collections::HashMap;
 use std::net::{SocketAddr, TcpListener};
-use std::time::Duration;
+use std::time::{Duration};
+
 use config::*;
 use connection::*;
 use router::*;
 use server_states::*;
+//use session::*;
 use thread_utils::ThreadPool;
 
-//TODO: handle errors with grace...
+//TODO: 1. handle errors with grace...
+//TODO: 2. Impl middlewear
+//TODO: 3. Use lazy_static to create session control
 
 pub struct HttpServer {
     router: Route,
@@ -28,6 +44,8 @@ pub trait ServerDef {
     fn set_pool_size(&mut self, size: usize);
     fn set_read_timeout(&mut self, timeout: u8);
     fn set_write_timeout(&mut self, timeout: u8);
+    fn def_default_response_header(&mut self, header: HashMap<String, String>);
+    fn set_default_response_header(&mut self, field: String, value: String);
 }
 
 impl HttpServer {
@@ -64,20 +82,24 @@ impl Router for HttpServer {
         self.router.get(uri, callback);
     }
 
-    fn put(&mut self, uri: RequestPath, callback: Callback) {
-        self.router.put(uri, callback);
-    }
-
     fn post(&mut self, uri: RequestPath, callback: Callback) {
         self.router.post(uri, callback);
+    }
+
+    fn put(&mut self, uri: RequestPath, callback: Callback) {
+        self.router.put(uri, callback);
     }
 
     fn delete(&mut self, uri: RequestPath, callback: Callback) {
         self.router.delete(uri, callback);
     }
 
-    fn other(&mut self, uri: RequestPath, callback: Callback) {
-        self.router.other(uri, callback);
+    fn options(&mut self, uri: RequestPath, callback: Callback) {
+        self.router.options(uri, callback);
+    }
+
+    fn other(&mut self, method: &str, uri: RequestPath, callback: Callback) {
+        self.router.other(method, uri, callback);
     }
 }
 
@@ -97,6 +119,14 @@ impl ServerDef for HttpServer {
     fn set_write_timeout(&mut self, timeout: u8) {
         self.config.write_timeout = timeout;
     }
+
+    fn def_default_response_header(&mut self, header: HashMap<String, String>) {
+        self.config.use_default_header(&header);
+    }
+
+    fn set_default_response_header(&mut self, field: String, value: String) {
+        self.config.default_header(field, value, true);
+    }
 }
 
 fn start_with(listener: &TcpListener, router: &Route, config: &ServerConfig, server_states: &ServerStates) {
@@ -107,6 +137,9 @@ fn start_with(listener: &TcpListener, router: &Route, config: &ServerConfig, ser
 
     for stream in listener.incoming() {
         if let Ok(s) = stream {
+            //let session = Session::new();
+            //println!("Session id: {}", session.get_id());
+
             if let Err(e) = s.set_read_timeout(read_timeout) {
                 println!("Unable to set read timeout: {}", e);
                 continue;
@@ -119,8 +152,11 @@ fn start_with(listener: &TcpListener, router: &Route, config: &ServerConfig, ser
 
             // clone the router so it can out live the closure.
             let router = Route::from(&router);
+            let default_header = config.get_default_header();
+            let default_pages = config.get_default_pages();
+
             pool.execute(move || {
-                handle_connection(s, &router);
+                handle_connection(s, &router, &default_header, &default_pages);
             });
         }
 
