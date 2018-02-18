@@ -7,3 +7,4 @@ server/target/
 server/http_server/target/
 server/**/*.rs.bk
 .idea
+/server/http_server/
