@@ -40,9 +40,6 @@ fn main() {
 }
 
 fn main_handler(req: &Request, resp: &mut Response) {
-
-//    println!("Ready to server: {}", req.path);
-
     match &req.uri[..] {
         "/" => {
             resp.send_file("../client/public/index.html");
