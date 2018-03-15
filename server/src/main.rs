@@ -34,12 +34,14 @@ fn main() {
     let mut server = HttpServer::new();
     server.set_pool_size(pool_size);
 
-    server.get(RequestPath::WildCard(r"^/\w*?"), main_handler);
+    server.get(RequestPath::WildCard(r"^/\w*"), main_handler);
 
     server.listen(8080);
 }
 
 fn main_handler(req: &Request, resp: &mut Response) {
+    //println!("I'm in");
+
     match &req.uri[..] {
         "/" => {
             resp.send_file("../client/public/index.html");

@@ -5,6 +5,7 @@ type item = {
 
 let component = ReasonReact.statelessComponent("TodoItem");
 let str = ReasonReact.stringToElement;
+let newItem = (t, c) => { title: t, completed: c };
 
 let make = (~item, children) => {
   ...component,

@@ -1,10 +1,5 @@
-type item = {
-  title: string,
-  completed: bool
-};
-
 type state = {
-  items: list(item)
+  items: list(TodoItem.item)
 };
 
 type action =
@@ -12,7 +7,7 @@ type action =
 
 let component = ReasonReact.reducerComponent("TodoApp");
 let stringify = ReasonReact.stringToElement;
-let newItem = () => {title: "Click a button", completed: true};
+let newItem = () => TodoItem.newItem("Click a button", true);
 
 let make = (children) => {
   ...component,
@@ -40,7 +35,11 @@ let make = (children) => {
     let itemsDisplay =
       switch (itemCount) {
       | 0 => stringify("Nothing yet...")
-      | _ => <TodoItem item=({title: "test title", completed: false}) />
+      | _ => {
+          ReasonReact.arrayToElement(Array.of_list(
+            List.map((item) => <TodoItem item />, items)
+          ))
+        }
       };
 
     <div className="app">
