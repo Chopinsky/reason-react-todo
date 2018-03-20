@@ -4,5 +4,5 @@ version = "0.1.0"
 authors = ["Jacob Zuo <chopinsky@live.com>"]
 
 [dependencies]
-rusty_express = "^0.2.7"
+rusty_express = "^0.2.0"
 http_server = { path = "http_server" }

@@ -39,22 +39,26 @@ fn main() {
     server.listen(8080);
 }
 
-fn main_handler(req: &Request, resp: &mut Response) {
-    //println!("I'm in");
+fn main_handler(req: &Box<Request>, resp: &mut Box<Response>) {
+    println!("I'm in...");
 
     match &req.uri[..] {
         "/" => {
-            resp.send_file("../client/public/index.html");
+            resp.send_file_async("../client/public/index.html");
             resp.status(200);
         },
         "/bundle.js" => {
-            resp.send_file("../client/public/bundle.js");
+            resp.send_file_async("../client/public/bundle.js");
             resp.status(200);
         },
         "/styles.css" => {
-            resp.send_file("../client/public/styles.css");
+            resp.send_file_async("../client/public/styles.css");
             resp.status(200);
         },
+        "/test" => {
+            resp.send(&format!("Hello world from rusty server from path: {}", req.uri));
+            resp.status(200);
+        }
         _ => {
             resp.status(404);
         }
