@@ -1,5 +1,6 @@
 type state = {
-  items: list(TodoItem.item)
+  items: list(TodoItem.item),
+  lastId: int
 };
 
 type action =
@@ -7,20 +8,30 @@ type action =
 
 let component = ReasonReact.reducerComponent("TodoApp");
 let stringify = ReasonReact.stringToElement;
-let newItem = () => TodoItem.newItem("Click a button", true);
+let newItem = (id) => TodoItem.newItem(id, "Click a button", true);
 
 let make = (children) => {
   ...component,
 
   initialState: () => {
     items: [
-      {title: "Write something to do", completed: false}
-    ]
+      {
+        id: 0,
+        title: "Write something to do",
+        completed: false
+      }
+    ],
+    lastId: 1,
   },
 
-  reducer: (action, {items}) => {
+  reducer: (action, {items, lastId}) => {
     switch action {
-      | AddItem => ReasonReact.Update({ items: [newItem(), ...items] })
+    | AddItem => {
+        ReasonReact.Update({
+          items: [newItem(lastId), ...items],
+          lastId: lastId + 1
+        })
+      }
     }
   },
 

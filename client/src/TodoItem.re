@@ -1,11 +1,12 @@
 type item = {
+  id: int,
   title: string,
   completed: bool
 };
 
 let component = ReasonReact.statelessComponent("TodoItem");
 let str = ReasonReact.stringToElement;
-let newItem = (t, c) => { title: t, completed: c };
+let newItem = (i, t, c) => { id: i, title: t, completed: c };
 
 let make = (~item, children) => {
   ...component,
