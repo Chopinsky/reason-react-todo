@@ -7,6 +7,7 @@ type item = {
 let component = ReasonReact.statelessComponent("TodoItem");
 let str = ReasonReact.stringToElement;
 let newItem = (i, t, c) => { id: i, title: t, completed: c };
+let getId = (item) => { item.id };
 
 let make = (~item, children) => {
   ...component,

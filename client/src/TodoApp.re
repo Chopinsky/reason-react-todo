@@ -3,23 +3,25 @@ type state = {
   lastId: int
 };
 
+type item = TodoItem.item;
+
 type action =
   | AddItem;
 
+let totalCount = ref(0);
 let component = ReasonReact.reducerComponent("TodoApp");
 let stringify = ReasonReact.stringToElement;
-let newItem = (id) => TodoItem.newItem(id, "Click a button", true);
+let newItem = (id) => {
+  totalCount := totalCount^ + 1;
+  TodoItem.newItem(id, "Click a button", true)
+};
 
 let make = (children) => {
   ...component,
 
   initialState: () => {
     items: [
-      {
-        id: 0,
-        title: "Write something to do",
-        completed: false
-      }
+      TodoItem.newItem(0, "Write something to do", false)
     ],
     lastId: 1,
   },
@@ -30,7 +32,7 @@ let make = (children) => {
         ReasonReact.Update({
           items: [newItem(lastId), ...items],
           lastId: lastId + 1
-        })
+        });
       }
     }
   },
@@ -48,8 +50,8 @@ let make = (children) => {
       | 0 => stringify("Nothing yet...")
       | _ => {
           ReasonReact.arrayToElement(Array.of_list(
-            List.map((item) => <TodoItem item />, items)
-          ))
+            List.map((item) => <TodoItem key=(string_of_int(TodoItem.getId(item))) item />, items)
+          ));
         }
       };
 
