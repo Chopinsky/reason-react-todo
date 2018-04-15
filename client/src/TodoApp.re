@@ -4,9 +4,9 @@ type state = {
 };
 
 type item = TodoItem.item;
-
 type action =
-  | AddItem;
+  | AddItem
+  | ToggleItem(int);
 
 let totalCount = ref(0);
 let component = ReasonReact.reducerComponent("TodoApp");
@@ -16,7 +16,7 @@ let newItem = (id) => {
   TodoItem.newItem(id, "Click a button", true)
 };
 
-let make = (children) => {
+let make = (_) => {
   ...component,
 
   initialState: () => {
@@ -34,6 +34,12 @@ let make = (children) => {
           lastId: lastId + 1
         });
       }
+    | ToggleItem(id) => {
+        let items = List.map((itm) =>
+          TodoItem.getId(itm) === id ? {...itm, completed: !itm.completed} : itm
+          , items);
+        ReasonReact.Update({ items: items, lastId: lastId })
+      }
     }
   },
 
@@ -50,7 +56,11 @@ let make = (children) => {
       | 0 => stringify("Nothing yet...")
       | _ => {
           ReasonReact.arrayToElement(Array.of_list(
-            List.map((item) => <TodoItem key=(string_of_int(TodoItem.getId(item))) item />, items)
+            List.map((itm) =>
+              <TodoItem key=(string_of_int(TodoItem.getId(itm)))
+                        onToggle=(reduce(() => ToggleItem(itm.id)))
+                        item=itm />
+              , items)
           ));
         }
       };
@@ -58,7 +68,7 @@ let make = (children) => {
     <div className="app">
       <div className="title">
         (stringify("What to do"))
-        <button onClick=(reduce((event) => AddItem))>
+        <button onClick=(reduce((_) => AddItem))>
           (stringify("Add something"))
         </button>
       </div>

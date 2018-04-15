@@ -9,15 +9,14 @@ let str = ReasonReact.stringToElement;
 let newItem = (i, t, c) => { id: i, title: t, completed: c };
 let getId = (item) => { item.id };
 
-let make = (~item, children) => {
+let make = (~item, ~onToggle, children) => {
   ...component,
 
-  render: (self) => {
-    <div className="item">
+  render: (_) => {
+    <div className="item" onClick=((_evt) => onToggle())>
       <input
         _type="checkbox"
         checked=(Js.Boolean.to_js_boolean(item.completed))
-        /* TODO make interactive */
       />
       (str(item.title))
     </div>

@@ -40,8 +40,6 @@ fn main() {
 }
 
 fn main_handler(req: &Box<Request>, resp: &mut Box<Response>) {
-    println!("I'm in...");
-
     match &req.uri[..] {
         "/" => {
             resp.send_file_async("../client/public/index.html");
