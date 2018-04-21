@@ -3,17 +3,50 @@ type state = {
   lastId: int
 };
 
+let valueFromEvent = (evt): string => (
+  evt
+  |> ReactEventRe.Form.target
+  |> ReactDOMRe.domElementToObj
+)##value;
+
+module Input = {
+  type state = string;
+  let component = ReasonReact.reducerComponent("Input");
+
+  let make = (~onSubmit, _) => {
+    ...component,
+
+    initialState: () => "",
+
+    reducer: (newText, _text) => ReasonReact.Update(newText),
+
+    render: ({ state: text, reduce }) =>
+      <input
+        value=text
+        _type="text"
+        placeholder="What to do next..."
+        onChange=(reduce((evt) => valueFromEvent(evt)))
+        onKeyDown=((evt) =>
+          if (ReactEventRe.Keyboard.key(evt) == "Enter") {
+            onSubmit(text);
+            (reduce(() => ""))()
+          }
+        )
+      />
+  }
+};
+
 type item = TodoItem.item;
 type action =
-  | AddItem
+  | AddItem(string)
   | ToggleItem(int);
 
 let totalCount = ref(0);
 let component = ReasonReact.reducerComponent("TodoApp");
 let stringify = ReasonReact.stringToElement;
-let newItem = (id) => {
+let newItem = (id, text) => {
   totalCount := totalCount^ + 1;
-  TodoItem.newItem(id, "Click a button", true)
+  TodoItem.newItem(id, text, true)
 };
 
 let make = (_) => {
@@ -28,9 +61,9 @@ let make = (_) => {
 
   reducer: (action, {items, lastId}) => {
     switch action {
-    | AddItem => {
+    | AddItem(text) => {
         ReasonReact.Update({
-          items: [newItem(lastId), ...items],
+          items: [newItem(lastId, text), ...items],
           lastId: lastId + 1
         });
       }
@@ -68,9 +101,7 @@ let make = (_) => {
     <div className="app">
       <div className="title">
         (stringify("What to do"))
-        <button onClick=(reduce((_) => AddItem))>
-          (stringify("Add something"))
-        </button>
+        <Input onSubmit=(reduce((text) => AddItem(text))) />
       </div>
       <div className="items">
         (itemsDisplay)
